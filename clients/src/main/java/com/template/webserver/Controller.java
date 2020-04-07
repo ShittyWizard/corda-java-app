@@ -2,12 +2,16 @@ package com.template.webserver;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.template.flows.KYCFlow;
@@ -39,13 +44,17 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  * Define your API endpoints here.
  */
 @RestController
-@RequestMapping("/") // The paths for HTTP requests are relative to this base path.
+@RequestMapping("/")
 public class Controller {
     private NodeInfoResourceAssembler nodeInfoResourceAssembler = new NodeInfoResourceAssembler();
     private KYCStateResourceAssembler kycStateResourceAssembler = new KYCStateResourceAssembler();
     private KYCFlowService kycFlowService = new DefaultKYCFlowService();
+    private RestTemplate restTemplate = new RestTemplate();
 
     private final CordaRPCOps proxy;
+
+    private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
+    private static final String ETHEREUM_INIT_URL = "http://localhost:8081/ethereum/filestore/crosschain/init";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
@@ -115,5 +124,42 @@ public class Controller {
             System.out.println("Hash " + hash);
             proxy.startFlowDynamic(KYCFlow.class, hash, targetBank);
         }
+    }
+
+    @PostMapping(value = "/attachments/startKYCFlow/crosschain/initFile")
+    public String startCrosschainKYCFlowWithInitFile(
+            @RequestBody
+                    MultipartFile file,
+            @RequestParam
+                    String uploader,
+            @RequestParam
+                    String publicAddress
+    )
+            throws IOException {
+        Party crossNode = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(CROSS_NODE_ADDRESS));
+        System.out.println("Crosschain flow started...");
+        if (crossNode != null) {
+            String hash = kycFlowService.uploadAttachment(file, uploader, proxy);
+            proxy.startFlowDynamic(KYCFlow.class, hash, crossNode);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+            HttpEntity<InputStreamResource> entity = new HttpEntity<>(new InputStreamResource(file.getInputStream()), headers);
+
+            return restTemplate.exchange("http://localhost:8081/ethereum/filestore/crosschain/init", HttpMethod.POST, entity, String.class).getBody();
+        } else {
+            System.out.println("Problem with getting cross node");
+            throw new IllegalArgumentException("Wrong address of cross node");
+        }
+    }
+
+    @PostMapping(value = "/attachments/startKYCFlow/crosschain/existingFile")
+    public void startCrosschainKYCFlowWtihExistingFile(
+            @RequestParam
+                    String hashOfFile,
+            @RequestParam
+                    String publicAddress
+    ) {
+
     }
 }
