@@ -12,7 +12,9 @@ import net.corda.core.node.services.Vault;
 
 public interface KYCFlowService {
     Vault.Page<KYCState> getAvailableAttachments(CordaRPCOps proxy);
-    String uploadAttachment(MultipartFile file, String uploader, CordaRPCOps proxy)
+    String uploadAttachmentByMultipartFile(MultipartFile file, String uploader, CordaRPCOps proxy)
+            throws IOException;
+    String uploadAttachmentByInpuStream(InputStreamResource inputStreamResource, String filename, String uploader, CordaRPCOps proxy)
             throws IOException;
     InputStreamResource downloadAttachmentByHash(String hash, CordaRPCOps proxy);
 }

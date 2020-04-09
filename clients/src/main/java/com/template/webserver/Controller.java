@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.template.flows.KYCFlow;
 import com.template.services.KYCFlowService;
@@ -54,7 +55,7 @@ public class Controller {
     private final CordaRPCOps proxy;
 
     private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
-    private static final String ETHEREUM_INIT_URL = "http://localhost:8081/ethereum/filestore/crosschain/init";
+    private static final String ETHEREUM_CHANGE_OWNER_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/changeOwner";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
@@ -89,7 +90,7 @@ public class Controller {
                     String uploader
     )
             throws IOException {
-        String hash = kycFlowService.uploadAttachment(file, uploader, proxy);
+        String hash = kycFlowService.uploadAttachmentByMultipartFile(file, uploader, proxy);
         return ResponseEntity.created(URI.create(String.format("attachments/%s", hash)))
                              .body(String.format("Attachment uploaded with hash - %s", hash));
     }
@@ -119,7 +120,7 @@ public class Controller {
         Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(targetBankName));
         System.out.println("TEST UPLOADING!");
         if (targetBank != null) {
-            String hash = kycFlowService.uploadAttachment(file, uploader, proxy);
+            String hash = kycFlowService.uploadAttachmentByMultipartFile(file, uploader, proxy);
             System.out.println("Target bank " + targetBank.getName().getOrganisation());
             System.out.println("Hash " + hash);
             proxy.startFlowDynamic(KYCFlow.class, hash, targetBank);
@@ -133,20 +134,16 @@ public class Controller {
             @RequestParam
                     String uploader,
             @RequestParam
-                    String publicAddress
+                    String sendToAddress
     )
             throws IOException {
         Party crossNode = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(CROSS_NODE_ADDRESS));
-        System.out.println("Crosschain flow started...");
+        System.out.println("Crosschain flow for new file started...");
         if (crossNode != null) {
-            String hash = kycFlowService.uploadAttachment(file, uploader, proxy);
-            proxy.startFlowDynamic(KYCFlow.class, hash, crossNode);
+            String hashOfFile = kycFlowService.uploadAttachmentByMultipartFile(file, uploader, proxy);
+            InputStreamResource inputStreamResource = new InputStreamResource(file.getInputStream());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-            HttpEntity<InputStreamResource> entity = new HttpEntity<>(new InputStreamResource(file.getInputStream()), headers);
-
-            return restTemplate.exchange("http://localhost:8081/ethereum/filestore/crosschain/init", HttpMethod.POST, entity, String.class).getBody();
+            return composeAndSendRequestForCrosschainTransaction(inputStreamResource, sendToAddress, crossNode, hashOfFile);
         } else {
             System.out.println("Problem with getting cross node");
             throw new IllegalArgumentException("Wrong address of cross node");
@@ -154,12 +151,62 @@ public class Controller {
     }
 
     @PostMapping(value = "/attachments/startKYCFlow/crosschain/existingFile")
-    public void startCrosschainKYCFlowWtihExistingFile(
+    public String startCrosschainKYCFlowWtihExistingFile(
             @RequestParam
                     String hashOfFile,
             @RequestParam
-                    String publicAddress
+                    String sendToAddress
     ) {
+        Party crossNode = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(CROSS_NODE_ADDRESS));
+        System.out.println("Crosschain flow for new file started...");
+        if (crossNode != null) {
+            InputStreamResource inputStreamResource = kycFlowService.downloadAttachmentByHash(hashOfFile, proxy);
 
+            return composeAndSendRequestForCrosschainTransaction(inputStreamResource, sendToAddress, crossNode, hashOfFile);
+        } else {
+            System.out.println("Problem with getting cross node");
+            throw new IllegalArgumentException("Wrong address of cross node");
+        }
+    }
+
+    @PostMapping(value = "/attachments/startKYCFlow/crosschain/receiver")
+    public void startKYCFlowByReceiver(
+            @RequestBody
+                    InputStreamResource inputStreamResource,
+            @RequestParam
+                    String sendToAddress,
+            @RequestParam
+                    String filename,
+            @RequestParam
+                    String uploader
+    )
+            throws IOException {
+        Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(sendToAddress));
+        if (targetBank != null) {
+            String hash = kycFlowService.uploadAttachmentByInpuStream(inputStreamResource, filename, uploader, proxy);
+            System.out.println("Target bank " + targetBank.getName().getOrganisation());
+            System.out.println("Hash " + hash);
+            proxy.startFlowDynamic(KYCFlow.class, hash, targetBank);
+        } else {
+            throw new IllegalArgumentException("Address of bank is incorrect");
+        }
+    }
+
+    private String composeAndSendRequestForCrosschainTransaction(
+            InputStreamResource inputStreamResource,
+            String sendToAddress,
+            Party crossNode,
+            String hashOfFile
+    ) {
+        proxy.startFlowDynamic(KYCFlow.class, hashOfFile, crossNode);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        HttpEntity<InputStreamResource> entity = new HttpEntity<>(inputStreamResource, headers);
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(ETHEREUM_CHANGE_OWNER_URL)
+                                                           .queryParam("sendToAddress", sendToAddress);
+
+        return restTemplate.exchange(builder.toUriString(), HttpMethod.POST, entity, String.class).getBody();
     }
 }

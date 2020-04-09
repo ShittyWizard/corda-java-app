@@ -34,7 +34,7 @@ public class DefaultKYCFlowService implements KYCFlowService {
     }
 
     @Override
-    public String uploadAttachment(MultipartFile file, String uploader, CordaRPCOps proxy)
+    public String uploadAttachmentByMultipartFile(MultipartFile file, String uploader, CordaRPCOps proxy)
             throws IOException {
         String filename = file.getOriginalFilename();
         if (filename == null) {
@@ -47,7 +47,18 @@ public class DefaultKYCFlowService implements KYCFlowService {
         } else {
             hash = proxy.uploadAttachmentWithMetadata(file.getInputStream(), uploader, filename);
         }
-        LOG.debug("File {} was successfully uploaded", filename);
+        LOG.info("File {} was successfully uploaded", filename);
+        return hash.toString();
+    }
+
+    @Override
+    public String uploadAttachmentByInpuStream(InputStreamResource inputStreamResource, String filename, String uploader, CordaRPCOps proxy)
+            throws IOException {
+        if (filename == null) {
+            throw new IllegalArgumentException("File name must be set");
+        }
+        SecureHash hash = uploadZip(inputStreamResource.getInputStream(), uploader, filename, proxy);
+        LOG.info("File {} was successfully uploaded", filename);
         return hash.toString();
     }
 
