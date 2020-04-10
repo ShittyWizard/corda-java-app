@@ -151,7 +151,7 @@ public class Controller {
     }
 
     @PostMapping(value = "/attachments/startKYCFlow/crosschain/existingFile")
-    public String startCrosschainKYCFlowWtihExistingFile(
+    public String startCrosschainKYCFlowWithExistingFile(
             @RequestParam
                     String hashOfFile,
             @RequestParam
@@ -169,18 +169,24 @@ public class Controller {
         }
     }
 
+//    FOR REQUESTING FROM ETHEREUM APP
     @PostMapping(value = "/attachments/startKYCFlow/crosschain/receiver")
     public void startKYCFlowByReceiver(
             @RequestBody
                     InputStreamResource inputStreamResource,
             @RequestParam
-                    String sendToAddress,
+                    String organisation,
+            @RequestParam
+                    String locality,
+            @RequestParam
+                    String country,
             @RequestParam
                     String filename,
             @RequestParam
                     String uploader
     )
             throws IOException {
+        String sendToAddress = buildAddressByParameters(organisation, locality, country);
         Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(sendToAddress));
         if (targetBank != null) {
             String hash = kycFlowService.uploadAttachmentByInpuStream(inputStreamResource, filename, uploader, proxy);
@@ -190,6 +196,10 @@ public class Controller {
         } else {
             throw new IllegalArgumentException("Address of bank is incorrect");
         }
+    }
+
+    private String buildAddressByParameters(String organisation, String locality, String country) {
+        return String.format("O=%s,L=%s,C=%s", organisation, locality, country);
     }
 
     private String composeAndSendRequestForCrosschainTransaction(
