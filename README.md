@@ -40,7 +40,7 @@ corda-java-app: ./gradlew runPartyAServer
 
 It will run server on _http://localhost:10050_. Now you can send HTTP-requests by Postman (or whatever) and use this app.
 
-## How to run crosschain transaction:
+## How to run crosschain transaction (Corda --> Ethereum):
 
 If the file is already loaded, use method *com.template.webserver.Controller.startCrosschainKYCFlowWithExistingFile* request. Otherwise, use *com.template.webserver.Controller.startCrosschainKYCFlowWithInitFile*;
 You should now address of node in Ethereum network (public key); Both methods starts KYCFlow to Corda's CrossNode, and after that init transaction in Ethereum network from Ethereum's CrossNode;
