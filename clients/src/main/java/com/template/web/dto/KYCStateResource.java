@@ -7,6 +7,7 @@ public class KYCStateResource {
     private String partyNameTargetBank;
     private Date createTs;
     private String hashOfFile;
+    private String sha256;
 
     public KYCStateResource() {
     }
@@ -41,5 +42,13 @@ public class KYCStateResource {
 
     public void setHashOfFile(String hashOfFile) {
         this.hashOfFile = hashOfFile;
+    }
+
+    public String getSha256() {
+        return sha256;
+    }
+
+    public void setSha256(String sha256) {
+        this.sha256 = sha256;
     }
 }

@@ -1,6 +1,7 @@
 package com.template.services;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,7 +15,7 @@ public interface KYCFlowService {
     Vault.Page<KYCState> getAvailableAttachments(CordaRPCOps proxy);
     String uploadAttachmentByMultipartFile(MultipartFile file, String uploader, CordaRPCOps proxy)
             throws IOException;
-    String uploadAttachmentByInpuStream(InputStreamResource inputStreamResource, String filename, String uploader, CordaRPCOps proxy)
+    String uploadAttachmentByInputStream(InputStream inputStream, String filename, String uploader, CordaRPCOps proxy)
             throws IOException;
     InputStreamResource downloadAttachmentByHash(String hash, CordaRPCOps proxy);
 }

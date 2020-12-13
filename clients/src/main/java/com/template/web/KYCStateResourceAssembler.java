@@ -22,6 +22,7 @@ public class KYCStateResourceAssembler {
         resource.setHashOfFile(kycState.getHashOfFile());
         resource.setCreateTs(kycState.getCreateTs());
 
+        resource.setSha256(kycState.getSha256Hash());
         return resource;
     }
 

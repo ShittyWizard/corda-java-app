@@ -1,11 +1,15 @@
 package com.template.webserver;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
@@ -56,8 +60,8 @@ public class Controller {
 
     private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
     private static final String ETHEREUM_CHANGE_OWNER_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/changeOwner";
-    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
-//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
@@ -191,8 +195,13 @@ public class Controller {
             @RequestParam
                     String uploader
     )
-            throws IOException {
+            throws IOException, NoSuchAlgorithmException {
+
         boolean isGrantCorrect = composeAndSendRequestForCheckingGrantsToFile(ipfsHashFile, senderPublicKey);
+        InputStream is = inputStreamResource.getInputStream();
+        byte[] content = IOUtils.toByteArray(is);
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(content);
+        String sha256SourceFile = getCheckSumForFile(byteArrayInputStream);
         if (!isGrantCorrect) {
             throw new IllegalStateException(String.format("IPFS hash file (%s) belong to %s. Probably, %s is frod.", ipfsHashFile, senderPublicKey, senderPublicKey));
         } else {
@@ -201,10 +210,11 @@ public class Controller {
         String sendToAddress = buildAddressByParameters(organisation, locality, country);
         Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(sendToAddress));
         if (targetBank != null) {
-            String hash = kycFlowService.uploadAttachmentByInpuStream(inputStreamResource, filename, uploader, proxy);
+            String hash = kycFlowService.uploadAttachmentByInputStream(byteArrayInputStream, filename, uploader, proxy);
             System.out.println("Target bank " + targetBank.getName().getOrganisation());
-            System.out.println("Hash " + hash);
-            proxy.startFlowDynamic(KYCFlow.class, hash, targetBank);
+            System.out.println("Corda hash " + hash);
+            System.out.println("SHA256 hash " + sha256SourceFile);
+            proxy.startFlowDynamic(KYCFlow.class, hash, targetBank, sha256SourceFile);
         } else {
             throw new IllegalArgumentException("Address of bank is incorrect");
         }
@@ -254,5 +264,18 @@ public class Controller {
                                                            .queryParam("sendToAddress", sendToAddress);
 
         return restTemplate.exchange(builder.toUriString(), HttpMethod.POST, entity, String.class).getBody();
+    }
+
+    private String getCheckSumForFile(InputStream inputStream) throws NoSuchAlgorithmException, IOException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        try (DigestInputStream dis = new DigestInputStream(inputStream, md)) {
+            while (dis.read() != -1) ;
+            md = dis.getMessageDigest();
+        }
+        StringBuilder result = new StringBuilder();
+        for (byte b : md.digest()) {
+            result.append(String.format("%02x", b));
+        }
+        return result.toString();
     }
 }

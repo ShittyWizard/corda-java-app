@@ -52,12 +52,12 @@ public class DefaultKYCFlowService implements KYCFlowService {
     }
 
     @Override
-    public String uploadAttachmentByInpuStream(InputStreamResource inputStreamResource, String filename, String uploader, CordaRPCOps proxy)
+    public String uploadAttachmentByInputStream(InputStream inputStream, String filename, String uploader, CordaRPCOps proxy)
             throws IOException {
         if (filename == null) {
             throw new IllegalArgumentException("File name must be set");
         }
-        SecureHash hash = uploadZip(inputStreamResource.getInputStream(), uploader, filename, proxy);
+        SecureHash hash = uploadZip(inputStream, uploader, filename, proxy);
         LOG.info("File {} was successfully uploaded", filename);
         return hash.toString();
     }

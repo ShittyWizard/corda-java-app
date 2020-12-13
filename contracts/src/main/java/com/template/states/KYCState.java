@@ -19,11 +19,13 @@ public class KYCState implements ContractState {
     private final Party sourceBank;
     private final Party targetBank;
     private final String hashOfFile;
+    private final String sha256Hash;
 
-    public KYCState(Party sourceBank, Party targetBank, String hashOfFile) {
+    public KYCState(Party sourceBank, Party targetBank, String hashOfFile, String sha256Hash) {
         this.sourceBank = sourceBank;
         this.targetBank = targetBank;
         this.hashOfFile = hashOfFile;
+        this.sha256Hash = sha256Hash;
         this.createTs = new Date();
     }
 
@@ -41,6 +43,10 @@ public class KYCState implements ContractState {
 
     public String getHashOfFile() {
         return hashOfFile;
+    }
+
+    public String getSha256Hash() {
+        return sha256Hash;
     }
 
     @NotNull

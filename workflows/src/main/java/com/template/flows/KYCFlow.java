@@ -28,12 +28,14 @@ import static java.util.Arrays.asList;
 public class KYCFlow extends FlowLogic<Void> {
     private final String attachmentHash;
     private final Party targetBank;
+    private final String sha256Hash;
 
     private final ProgressTracker progressTracker = new ProgressTracker();
 
-    public KYCFlow(String attachmentHash, Party targetBank) {
+    public KYCFlow(String attachmentHash, Party targetBank, String sha256Hash) {
         this.attachmentHash = attachmentHash;
         this.targetBank = targetBank;
+        this.sha256Hash = sha256Hash;
     }
 
     public String getAttachmentHash() {
@@ -54,7 +56,7 @@ public class KYCFlow extends FlowLogic<Void> {
     public Void call()
             throws FlowException {
         Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
-        KYCState outputState = new KYCState(getOurIdentity(), targetBank, attachmentHash);
+        KYCState outputState = new KYCState(getOurIdentity(), targetBank, attachmentHash, sha256Hash);
         List<PublicKey> requiredSigners = asList(getOurIdentity().getOwningKey(), targetBank.getOwningKey());
         Command command = new Command<>(new KYCContract.Create(), requiredSigners);
 
