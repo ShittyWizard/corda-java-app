@@ -56,6 +56,8 @@ public class Controller {
 
     private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
     private static final String ETHEREUM_CHANGE_OWNER_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/changeOwner";
+//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
@@ -175,6 +177,10 @@ public class Controller {
             @RequestBody
                     InputStreamResource inputStreamResource,
             @RequestParam
+                    String ipfsHashFile,
+            @RequestParam
+                    String senderPublicKey,
+            @RequestParam
                     String organisation,
             @RequestParam
                     String locality,
@@ -186,6 +192,12 @@ public class Controller {
                     String uploader
     )
             throws IOException {
+        boolean isGrantCorrect = composeAndSendRequestForCheckingGrantsToFile(ipfsHashFile, senderPublicKey);
+        if (!isGrantCorrect) {
+            throw new IllegalStateException(String.format("IPFS hash file (%s) belong to %s. Probably, %s is frod.", ipfsHashFile, senderPublicKey, senderPublicKey));
+        } else {
+            System.out.printf("IPFS hash file (%s) does not belong to %s. Successful!%n", ipfsHashFile, senderPublicKey);
+        }
         String sendToAddress = buildAddressByParameters(organisation, locality, country);
         Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(sendToAddress));
         if (targetBank != null) {
@@ -200,6 +212,30 @@ public class Controller {
 
     private String buildAddressByParameters(String organisation, String locality, String country) {
         return String.format("O=%s,L=%s,C=%s", organisation, locality, country);
+    }
+
+    private boolean composeAndSendRequestForCheckingGrantsToFile(
+            String ipfsHashFile,
+            String senderPublicKey
+    ) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(ETHEREUM_CHECK_GRANTS_URL)
+                .queryParam("senderPublicKey", senderPublicKey)
+                .queryParam("ipfsHashOfFile", ipfsHashFile);
+
+        Boolean result;
+        try {
+            result = restTemplate.getForObject(builder.toUriString(), Boolean.class);
+            if (result != null) {
+                return result;
+            } else {
+                throw new IllegalStateException("Something goes wrong with rest-request for checking grant for file..");
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Something goes wrong with rest-request for checking grant for file..");
+        }
     }
 
     private String composeAndSendRequestForCrosschainTransaction(
