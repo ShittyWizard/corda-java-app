@@ -60,8 +60,8 @@ public class Controller {
 
     private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
     private static final String ETHEREUM_CHANGE_OWNER_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/changeOwner";
-//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
-    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
