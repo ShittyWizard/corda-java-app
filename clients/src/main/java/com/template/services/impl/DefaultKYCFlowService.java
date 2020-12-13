@@ -43,7 +43,7 @@ public class DefaultKYCFlowService implements KYCFlowService {
         String contentType = file.getContentType();
         SecureHash hash;
         if (contentType != null && !(contentType.equals("zip") || contentType.equals("jar"))) {
-            hash = uploadZip(file.getInputStream(), uploader, filename, proxy);
+            hash = uploadZip(IOUtils.toByteArray(file.getInputStream()), uploader, filename, proxy);
         } else {
             hash = proxy.uploadAttachmentWithMetadata(file.getInputStream(), uploader, filename);
         }
@@ -52,12 +52,12 @@ public class DefaultKYCFlowService implements KYCFlowService {
     }
 
     @Override
-    public String uploadAttachmentByInputStream(InputStream inputStream, String filename, String uploader, CordaRPCOps proxy)
+    public String uploadAttachmentByInputStream(byte[] content, String filename, String uploader, CordaRPCOps proxy)
             throws IOException {
         if (filename == null) {
             throw new IllegalArgumentException("File name must be set");
         }
-        SecureHash hash = uploadZip(inputStream, uploader, filename, proxy);
+        SecureHash hash = uploadZip(content, uploader, filename, proxy);
         LOG.info("File {} was successfully uploaded", filename);
         return hash.toString();
     }
@@ -71,14 +71,14 @@ public class DefaultKYCFlowService implements KYCFlowService {
         return new InputStreamResource(proxy.openAttachment(secureHash));
     }
 
-    private SecureHash uploadZip(InputStream inputStream, String uploader, String filename, CordaRPCOps proxy)
+    private SecureHash uploadZip(byte[] content, String uploader, String filename, CordaRPCOps proxy)
             throws IOException {
         String zipName = filename + "-" + UUID.randomUUID().toString() + ".zip";
         FileOutputStream outputStream = new FileOutputStream(zipName);
         ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream);
         ZipEntry zipEntry = new ZipEntry(filename);
         zipOutputStream.putNextEntry(zipEntry);
-        zipOutputStream.write(IOUtils.toByteArray(inputStream));
+        zipOutputStream.write(content);
         zipOutputStream.closeEntry();
         zipOutputStream.close();
 

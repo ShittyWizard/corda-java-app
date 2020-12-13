@@ -15,7 +15,7 @@ public interface KYCFlowService {
     Vault.Page<KYCState> getAvailableAttachments(CordaRPCOps proxy);
     String uploadAttachmentByMultipartFile(MultipartFile file, String uploader, CordaRPCOps proxy)
             throws IOException;
-    String uploadAttachmentByInputStream(InputStream inputStream, String filename, String uploader, CordaRPCOps proxy)
+    String uploadAttachmentByInputStream(byte[] content, String filename, String uploader, CordaRPCOps proxy)
             throws IOException;
     InputStreamResource downloadAttachmentByHash(String hash, CordaRPCOps proxy);
 }

@@ -55,8 +55,8 @@ public class Controller {
 
     private static final String CROSS_NODE_ADDRESS = "O=CrossNode,L=Moscow,C=RU";
     private static final String ETHEREUM_CHANGE_OWNER_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/changeOwner";
-    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
-//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+//    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://178.154.248.132:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
+    private static final String ETHEREUM_CHECK_GRANTS_URL = "http://localhost:8081/crosschain/ethereum/filestore/receiver/checkGrantForFile";
 
     public Controller(NodeRPCConnection rpc) {
         this.proxy = rpc.proxy;
@@ -195,8 +195,7 @@ public class Controller {
         boolean isGrantCorrect = composeAndSendRequestForCheckingGrantsToFile(ipfsHashFile, senderPublicKey);
         InputStream is = inputStreamResource.getInputStream();
         byte[] content = IOUtils.toByteArray(is);
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(content);
-        String sha256SourceFile = getCheckSumForFile(byteArrayInputStream);
+        String sha256SourceFile = getCheckSumForFile(content);
         if (!isGrantCorrect) {
             throw new IllegalStateException(String.format("IPFS hash file (%s) belong to %s. Probably, %s is frod.", ipfsHashFile, senderPublicKey, senderPublicKey));
         } else {
@@ -205,7 +204,7 @@ public class Controller {
         String sendToAddress = buildAddressByParameters(organisation, locality, country);
         Party targetBank = proxy.wellKnownPartyFromX500Name(CordaX500Name.parse(sendToAddress));
         if (targetBank != null) {
-            String hash = kycFlowService.uploadAttachmentByInputStream(byteArrayInputStream, filename, uploader, proxy);
+            String hash = kycFlowService.uploadAttachmentByInputStream(content, filename, uploader, proxy);
             System.out.println("Target bank " + targetBank.getName().getOrganisation());
             System.out.println("Corda hash " + hash);
             System.out.println("SHA256 hash " + sha256SourceFile);
@@ -261,9 +260,10 @@ public class Controller {
         return restTemplate.exchange(builder.toUriString(), HttpMethod.POST, entity, String.class).getBody();
     }
 
-    private String getCheckSumForFile(InputStream inputStream) throws NoSuchAlgorithmException, IOException {
+    private String getCheckSumForFile(byte[] content) throws NoSuchAlgorithmException, IOException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        try (DigestInputStream dis = new DigestInputStream(inputStream, md)) {
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(content);
+        try (DigestInputStream dis = new DigestInputStream(byteArrayInputStream, md)) {
             while (dis.read() != -1) ;
             md = dis.getMessageDigest();
         }
